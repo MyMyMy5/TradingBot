@@ -1,0 +1,47 @@
+{
+  "exchange": {
+    "name": "kraken",
+    "key": "",
+    "secret": "",
+    "ccxt_config": {},
+    "ccxt_async_config": {},
+    "pair_whitelist": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT", "LINK/USDT", "MATIC/USDT"],
+    "pair_blacklist": []
+  },
+  "dry_run": true,
+  "dry_run_wallet": 1000,
+  "max_open_trades": 5,
+  "strategy": "MyManualStrategy",
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "127.0.0.1",
+    "listen_port": 8080,
+    "verbosity": "error",
+    "jwt_secret_key": "supersecretjwtkey",
+    "username": "Freqtrader",
+    "password": "SuperSecret1!",
+    "ws_token": "random_websocket_token"
+  },
+  "force_entry_enable": true,
+  "stake_currency": "USDT",
+  "stake_amount": 10,
+  "exit_pricing": {
+    "close_rate_type": "ohlc4",
+    "use_order_book": false,
+    "order_book_top": 1
+  },
+  "entry_pricing": {
+    "price_side": "other",
+    "close_rate_type": "ohlc4",
+    "use_order_book": false,
+    "order_book_top": 1
+  },
+  "pairlists": [
+    {
+      "method": "StaticPairList",
+      "number_assets": 7,
+      "allow_inactive_pairs": false,
+      "pairs": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT", "LINK/USDT", "MATIC/USDT"]
+    }
+  ]
+}
