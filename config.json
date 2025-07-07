@@ -10,7 +10,7 @@
   },
   "dry_run": true,
   "dry_run_wallet": 1000,
-  "max_open_trades": 5,
+  "max_open_trades": 3,
   "strategy": "MyManualStrategy",
   "api_server": {
     "enabled": true,
@@ -24,24 +24,45 @@
   },
   "force_entry_enable": true,
   "stake_currency": "USDT",
-  "stake_amount": 10,
-  "exit_pricing": {
-    "close_rate_type": "ohlc4",
-    "use_order_book": false,
-    "order_book_top": 1
+  "stake_amount": "unlimited",
+  "minimal_roi": {
+    "0": 0.04,
+    "20": 0.02,
+    "30": 0.01,
+    "40": 0.0
   },
-  "entry_pricing": {
-    "price_side": "other",
-    "close_rate_type": "ohlc4",
-    "use_order_book": false,
-    "order_book_top": 1
-  },
+  "stoploss": -0.10,
+  "trailing_stop": false,
   "pairlists": [
     {
-      "method": "StaticPairList",
-      "number_assets": 7,
-      "allow_inactive_pairs": false,
-      "pairs": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT", "LINK/USDT", "MATIC/USDT"]
+      "method": "VolumePairList",
+      "number_assets": 20,
+      "sort_key": "quoteVolume",
+      "min_value": 0,
+      "refresh_period": 1800
+    },
+    {
+      "method": "PercentChangePairList",
+      "number_assets": 10,
+      "sort_key": "percentChange",
+      "min_value": 0,
+      "refresh_period": 1800
     }
-  ]
+  ],
+  "order_types": {
+    "entry": "market",
+    "exit": "market",
+    "stoploss": "market",
+    "stoploss_on_exchange": true
+  },
+  "unfilledtimeout": {
+    "entry": 10,
+    "exit": 10
+  },
+  "entry_pricing": {
+    "price_side": "other"
+  },
+  "exit_pricing": {
+    "price_side": "other"
+  }
 }
