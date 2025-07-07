@@ -5,7 +5,8 @@ import numpy as np
 from datetime import datetime
 from typing import Optional, Union
 from freqtrade.persistence import Trade
-
+import logging  # Add this line
+logger = logging.getLogger(__name__)
 class MyManualStrategy(IStrategy):
     """
     Manual strategy that provides technical indicators for the AI agent.
@@ -19,28 +20,28 @@ class MyManualStrategy(IStrategy):
 
     # ROI and stoploss for safety (these act as a fallback in case AI does not exit)
     minimal_roi = {
-        "0": 0.05,    # 5% ROI target from start
-        "240": 0.02,  # 2% ROI after 4 hours
-        "1440": 0.01, # 1% after 1 day
-        "2880": 0     # 0% (no minimum) after 2 days
+        "0": 0.04,    # 4% ROI target from start
+        "20": 0.02,   # 2% after 20 minutes
+        "30": 0.01,   # 1% after 30 minutes
+        "40": 0       # 0% after 40 minutes
     }
-    stoploss = -0.03   # Stoploss at -3%
+    stoploss = -0.10   # Stoploss at -10%
 
-    # Allow up to 2 concurrent trades (one per pair in our whitelist)
-    max_open_trades = 2
+    # Allow up to 3 concurrent trades (adjust based on config)
+    max_open_trades = 3
 
     # Use market orders for instant execution on force entries/exits
     order_types = {
         "buy": "market",
         "sell": "market",
         "stoploss": "market",
-        "stoploss_on_exchange": False,
+        "stoploss_on_exchange": True,
     }
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Add various technical indicators to the dataframe for analysis.
-        (These indicators can be used for logging, debugging, or extended AI prompts.)
+        These indicators are used by the AI agent for decision-making.
         """
         # Shortcut references
         close = dataframe["close"]
@@ -59,46 +60,38 @@ class MyManualStrategy(IStrategy):
         dataframe["ema_12"] = ta.EMA(close, timeperiod=12)
         dataframe["ema_26"] = ta.EMA(close, timeperiod=26)
 
-        # MACD (Moving Average Convergence Divergence)
+        # MACD
         macd, macd_signal, macd_hist = ta.MACD(close, fastperiod=12, slowperiod=26, signalperiod=9)
         dataframe["macd"] = macd
-        dataframe["macdsignal"] = macd_signal
-        dataframe["macdhist"] = macd_hist
+        dataframe["macd_signal"] = macd_signal
+        dataframe["macd_hist"] = macd_hist
 
-        # Bollinger Bands (20-period SMA with 2 std dev)
+        # Bollinger Bands
         bb_upper, bb_middle, bb_lower = ta.BBANDS(close, timeperiod=20, nbdevup=2.0, nbdevdn=2.0, matype=0)
         dataframe["bb_upper"] = bb_upper
         dataframe["bb_middle"] = bb_middle
         dataframe["bb_lower"] = bb_lower
-        # %B (position of price within Bollinger Bands)
-        dataframe["bb_percent"] = (close - bb_lower) / (bb_upper - bb_lower)
-
-        # Bollinger Band Width (as a measure of volatility)
-        dataframe["bb_width"] = (bb_upper - bb_lower) / bb_middle
-
-        # Volume indicators
-        dataframe["volume_sma"] = ta.SMA(volume, timeperiod=20)
-        dataframe["volume_ratio"] = volume / dataframe["volume_sma"]
-
-        # Average True Range (volatility)
-        dataframe["atr"] = ta.ATR(high, low, close, timeperiod=14)
 
         # Stochastic Oscillator
-        stoch_k, stoch_d = ta.STOCH(high, low, close)
+        stoch_k, stoch_d = ta.STOCH(high, low, close, fastk_period=14, slowk_period=3, slowd_period=3)
         dataframe["stoch_k"] = stoch_k
         dataframe["stoch_d"] = stoch_d
 
-        # Custom simple trend strength indicator (count of bullish conditions met)
-        trend = np.zeros(len(dataframe))
-        # Condition 1: Price above short-term MA
-        trend += (close > dataframe["sma_20"]).astype(int)
-        # Condition 2: Short-term MA above longer-term MA
-        trend += (dataframe["sma_20"] > dataframe["sma_50"]).astype(int)
-        # Condition 3: RSI above 50 (bullish momentum)
-        trend += (dataframe["rsi"] > 50).astype(int)
-        # Condition 4: MACD above signal (bullish crossover)
-        trend += (dataframe["macd"] > dataframe["macdsignal"]).astype(int)
-        dataframe["trend_strength"] = trend  # 0 to 4
+        # Ichimoku Cloud
+        tenkan_sen = ta.HT_TRENDLINE(close)
+        kijun_sen = ta.HT_TRENDLINE(close)  # Simplified
+        senkou_span_a = (tenkan_sen + kijun_sen) / 2
+        senkou_span_b = ta.HT_TRENDLINE(close)  # Simplified
+        dataframe["ichimoku_tenkan"] = tenkan_sen
+        dataframe["ichimoku_kijun"] = kijun_sen
+        dataframe["ichimoku_senkou_a"] = senkou_span_a
+        dataframe["ichimoku_senkou_b"] = senkou_span_b
+
+        # On-Balance Volume (OBV)
+        dataframe["obv"] = ta.OBV(close, volume)
+
+        # Accumulation/Distribution Line (ADL)
+        dataframe["adl"] = ta.AD(high, low, close, volume)
 
         return dataframe
 
@@ -119,9 +112,16 @@ class MyManualStrategy(IStrategy):
     def custom_stoploss(self, pair: str, trade: Trade, current_time: datetime,
                         current_rate: float, current_profit: float, **kwargs) -> float:
         """
-        Custom stoploss to override or complement the base stoploss.
-        Here, we simply return the base stoploss value to use -3% consistently.
+        Custom stoploss to implement dynamic adjustments.
         """
+        if current_profit < 0.02:
+            return self.stoploss  # Initial stoploss
+        elif current_profit >= 0.02 and current_profit < 0.05:
+            return 0.01  # Move stoploss to 1% above open price
+        elif current_profit >= 0.05 and current_profit < 0.10:
+            return 0.03  # Move stoploss to 3% above open price
+        elif current_profit >= 0.10:
+            return 0.07  # Move stoploss to 7% above open price
         return self.stoploss
 
     def custom_exit(self, pair: str, trade: Trade, current_time: datetime,
@@ -136,12 +136,11 @@ class MyManualStrategy(IStrategy):
         """
         df, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
         if df is not None and not df.empty:
-            print(f"Dataframe for {pair} has {len(df)} rows")  # Debugging statement
             if current_profit > 0.05:
                 return "take_profit_5pct"
             elif current_profit > 0 and df['rsi'].iloc[-1] > 70:
                 return "take_profit_rsi_overbought"
-            elif current_profit > 0 and df['macd'].iloc[-1] < df['macdsignal'].iloc[-1]:
+            elif current_profit > 0 and df['macd'].iloc[-1] < df['macd_signal'].iloc[-1]:
                 return "take_profit_macd_bearish"
             elif current_profit < -0.02:
                 return "cut_loss_2pct"
@@ -165,4 +164,5 @@ class MyManualStrategy(IStrategy):
         """
         Logging on startup (optional).
         """
-        print("✅ MyManualStrategy loaded. Indicators initialized, awaiting AI decisions...")
+        logger.info("✅ MyManualStrategy loaded. Indicators initialized, awaiting AI decisions...")
+
