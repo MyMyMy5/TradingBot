@@ -77,13 +77,11 @@ class MyManualStrategy(IStrategy):
         dataframe["stoch_k"] = stoch_k
         dataframe["stoch_d"] = stoch_d
 
-        # Ichimoku Cloud
-        tenkan_sen = ta.HT_TRENDLINE(close)
-        kijun_sen = ta.HT_TRENDLINE(close)  # Simplified
-        senkou_span_a = (tenkan_sen + kijun_sen) / 2
-        senkou_span_b = ta.HT_TRENDLINE(close)  # Simplified
-        dataframe["ichimoku_tenkan"] = tenkan_sen
-        dataframe["ichimoku_kijun"] = kijun_sen
+        # Proper Ichimoku calculation
+        dataframe["ichimoku_tenkan"] = (high.rolling(window=9, min_periods=1).max() + low.rolling(window=9, min_periods=1).min()) / 2
+        dataframe["ichimoku_kijun"] = (high.rolling(window=26, min_periods=1).max() + low.rolling(window=26, min_periods=1).min()) / 2
+        senkou_span_a = ((dataframe["ichimoku_tenkan"] + dataframe["ichimoku_kijun"]) / 2).shift(26)
+        senkou_span_b = ((high.rolling(window=52, min_periods=1).max() + low.rolling(window=52, min_periods=1).min()) / 2).shift(26)
         dataframe["ichimoku_senkou_a"] = senkou_span_a
         dataframe["ichimoku_senkou_b"] = senkou_span_b
 
@@ -165,4 +163,3 @@ class MyManualStrategy(IStrategy):
         Logging on startup (optional).
         """
         logger.info("✅ MyManualStrategy loaded. Indicators initialized, awaiting AI decisions...")
-
