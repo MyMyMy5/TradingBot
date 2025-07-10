@@ -20,7 +20,9 @@ class MyHyperOptStrategy(IStrategy):
 
     # 'sell' space parameters
     sell_rsi = IntParameter(60, 90, default=70, space="sell")
-    
+    atr_multiplier = DecimalParameter(1.0, 3.0, default=2.0, space="stoploss")
+    fast_period = IntParameter(10, 14, default=12, space="buy")
+    slow_period = IntParameter(24, 28, default=26, space="sell")
     # 'roi' space parameters
     # Freqtrade will optimize the number of ROI entries, their time, and their value.
     # Example: 1 to 4 ROI entries.
