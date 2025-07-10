@@ -37,7 +37,13 @@ class MyManualStrategy(IStrategy):
         "stoploss": "market",
         "stoploss_on_exchange": True,
     }
-
+    def custom_stoploss(self, pair: str, trade: Trade, current_time: datetime,
+                        current_rate: float, current_profit: float, **kwargs) -> float:
+        df, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+        if df is not None and 'atr' in df and not df['atr'].empty:
+            atr = df['atr'].iloc[-1]
+            return -atr * 2  # 2x ATR stoploss
+        return self.stoploss
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Add various technical indicators to the dataframe for analysis.
@@ -51,7 +57,7 @@ class MyManualStrategy(IStrategy):
 
         # RSI (14-period)
         dataframe["rsi"] = ta.RSI(close, timeperiod=14)
-
+        dataframe["atr"] = ta.ATR(high, low, close, timeperiod=14)
         # Simple Moving Averages
         dataframe["sma_20"] = ta.SMA(close, timeperiod=20)
         dataframe["sma_50"] = ta.SMA(close, timeperiod=50)
