@@ -20,7 +20,8 @@
     "jwt_secret_key": "supersecretjwtkey",
     "username": "Freqtrader",
     "password": "SuperSecret1!",
-    "ws_token": "random_websocket_token"
+    "ws_token": "random_websocket_token",
+    "timeframes": ["5m", "15m", "1h"]
   },
   "force_entry_enable": true,
   "stake_currency": "USDT",
